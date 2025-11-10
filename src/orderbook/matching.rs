@@ -1,5 +1,5 @@
 use crate::orderbook::OrderBook;
-use crate::types::{Order, OrderSide, OrderType, Price, Quantity, Trade};
+use crate::types::{Order, OrderSide, OrderType, Quantity, Trade};
 use std::cmp::Reverse;
 
 impl OrderBook {
@@ -32,8 +32,9 @@ impl OrderBook {
 
         match taker_order.side {
             OrderSide::Buy => {
-                // Match against asks (sell orders)
-                // We can buy if ask price <= our bid price
+                // Buy as much as possible right now at the best available price
+                // so it doesnt care about price limits it just keeps consuming the lowest ask orders until
+                // its filled or liquidity is exhausted
                 while !taker_order.is_fully_filled() {
                     // Get best ask (lowest sell price)
                     let best_ask_price = match self.best_ask() {
@@ -47,7 +48,7 @@ impl OrderBook {
                     }
 
                     // Get the price level and create trade
-                    let (trade, fill_quantity, maker_id, maker_filled) = {
+                    let (trade, _fill_quantity, maker_id, maker_filled) = {
                         let price_level = self.asks.get_mut(&best_ask_price).unwrap();
 
                         // Match with the first order in the level (FIFO)
@@ -91,7 +92,7 @@ impl OrderBook {
 
                         trades.push(trade);
 
-                        // Update order index for maker
+                        // if the maker order is fully filled, remove it from the orderbook(hashmap)
                         if maker_filled {
                             self.orders.remove(&maker_id);
                         } else if let Some(price_level) = self.asks.get(&best_ask_price) {
@@ -128,7 +129,7 @@ impl OrderBook {
                     }
 
                     // Get the price level and create trade
-                    let (trade, fill_quantity, maker_id, maker_filled) = {
+                    let (trade, _fill_quantity, maker_id, maker_filled) = {
                         let price_level = self.bids.get_mut(&Reverse(best_bid_price)).unwrap();
 
                         // Match with the first order in the level (FIFO)

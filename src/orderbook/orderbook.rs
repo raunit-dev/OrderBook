@@ -1,17 +1,14 @@
 use crate::orderbook::PriceLevel;
-use crate::types::{Order, OrderSide, Price, Quantity, Trade, UserBalance};
+use crate::types::{Order, OrderSide, Price, Quantity, UserBalance};
 use std::cmp::Reverse;
 use std::collections::{BTreeMap, HashMap};
 use uuid::Uuid;
 
-/// Main OrderBook structure
-/// - Bids: BTreeMap with Reverse<Price> for descending order (highest price first)
-/// - Asks: BTreeMap with Price for ascending order (lowest price first)
 pub struct OrderBook {
-    pub bids: BTreeMap<Reverse<Price>, PriceLevel>, // Buy orders (descending)
-    pub asks: BTreeMap<Price, PriceLevel>,          // Sell orders (ascending)
-    pub orders: HashMap<Uuid, Order>,               // Order lookup by ID
-    pub user_balances: HashMap<Uuid, UserBalance>,  // User balances
+    pub bids: BTreeMap<Reverse<Price>, PriceLevel>,
+    pub asks: BTreeMap<Price, PriceLevel>,
+    pub orders: HashMap<Uuid, Order>,
+    pub user_balances: HashMap<Uuid, UserBalance>,
 }
 
 impl OrderBook {
@@ -59,10 +56,7 @@ impl OrderBook {
 
     /// Cancel an order by ID
     pub fn cancel_order(&mut self, order_id: Uuid) -> Result<Order, String> {
-        let order = self
-            .orders
-            .remove(&order_id)
-            .ok_or("Order not found")?;
+        let order = self.orders.remove(&order_id).ok_or("Order not found")?;
 
         let price = order.price.ok_or("Order has no price")?;
 
