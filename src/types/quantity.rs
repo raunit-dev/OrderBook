@@ -5,7 +5,7 @@ use std::ops::{Add, AddAssign, Sub, SubAssign};
 pub struct Quantity(u64);
 
 impl Quantity {
-    const DECIMAL_PLACES: u32 = 8;
+    // const DECIMAL_PLACES: u32 = 8;
     const MULTIPLIER: u64 = 100_000_000; // 10^8
 
     pub fn new(value: u64) -> Self {

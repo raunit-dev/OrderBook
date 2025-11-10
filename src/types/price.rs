@@ -1,14 +1,12 @@
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
 
-/// Price in fixed-point representation (6 decimal places)
-/// Example: 1.234567 BTC = 1_234_567
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Price(u64);
 
 impl Price {
-    const DECIMAL_PLACES: u32 = 6;
-    const MULTIPLIER: u64 = 1_000_000; // 10^6
+
+    const MULTIPLIER: u64 = 1_000_000;
 
     pub fn new(value: u64) -> Self {
         Price(value)
@@ -28,7 +26,6 @@ impl Price {
     }
 }
 
-//Trait purpose: Enables <, >, <=, and >= comparisons.
 impl PartialOrd for Price {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
@@ -55,13 +52,6 @@ mod tests {
     fn test_price_creation() {
         let price = Price::from_f64(123.456789);
         assert_eq!(price.raw(), 123_456_789);
-    }
-
-    #[test]
-    fn test_price_creation_reverse() {
-        //Remove this test later
-        let price = Price::to_f64(123_456_789);
-        assert_eq!(price.raw(), 123.456789);
     }
 
     #[test]
