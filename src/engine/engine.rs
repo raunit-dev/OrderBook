@@ -1,6 +1,6 @@
 use crate::messages::{OrderBookCommand, OrderBookResponse};
 use crate::orderbook::OrderBook;
-use crate::types::{Order, OrderType};
+use crate::types::Order;
 use tokio::sync::mpsc;
 
 /// Starts the OrderBook engine in a separate thread
@@ -23,7 +23,7 @@ pub async fn run_orderbook_engine(mut rx: mpsc::Receiver<OrderBookCommand>) {
                 let order_id = order.id;
 
                 // Check balance before placing order
-                let required_balance = match side {
+                match side {
                     crate::types::OrderSide::Buy => {
                         // Need USD to buy BTC
                         let usd_needed = price.to_f64() * quantity.to_f64();
@@ -58,7 +58,7 @@ pub async fn run_orderbook_engine(mut rx: mpsc::Receiver<OrderBookCommand>) {
                             continue;
                         }
                     }
-                };
+                }
 
                 match orderbook.match_order(order) {
                     Ok(trades) => {
@@ -172,10 +172,9 @@ pub async fn run_orderbook_engine(mut rx: mpsc::Receiver<OrderBookCommand>) {
                 response_tx,
             } => {
                 if let Some(balance) = orderbook.get_user_balance(user_id) {
-                    let _ =
-                        response_tx.send(OrderBookResponse::UserBalance {
-                            balance: balance.clone(),
-                        });
+                    let _ = response_tx.send(OrderBookResponse::UserBalance {
+                        balance: balance.clone(),
+                    });
                 } else {
                     let _ = response_tx.send(OrderBookResponse::Error {
                         message: "User not found".to_string(),

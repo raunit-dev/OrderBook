@@ -1,4 +1,4 @@
-use crate::types::{Order, OrderSide, Price, Quantity, Trade, UserBalance};
+use crate::types::{OrderSide, Price, Quantity, Trade, UserBalance};
 use serde::{Deserialize, Serialize};
 use tokio::sync::oneshot;
 use uuid::Uuid;

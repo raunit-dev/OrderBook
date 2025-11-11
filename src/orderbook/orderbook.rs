@@ -21,17 +21,16 @@ impl OrderBook {
         }
     }
 
-    /// Get best bid price (highest buy price)
     pub fn best_bid(&self) -> Option<Price> {
         self.bids.keys().next().map(|r| r.0)
     }
 
-    /// Get best ask price (lowest sell price)
     pub fn best_ask(&self) -> Option<Price> {
         self.asks.keys().next().copied()
     }
 
-    /// Add an order to the orderbook
+    /// Add a limit order to the orderbook
+    /// This is a high-level operation that places the order in the appropriate price level queue
     pub fn add_order(&mut self, order: Order) {
         let order_id = order.id;
         let price = order.price.expect("Limit order must have price");
@@ -41,29 +40,29 @@ impl OrderBook {
                 self.bids
                     .entry(Reverse(price))
                     .or_insert_with(|| PriceLevel::new(price))
-                    .add_order(order.clone());
+                    .enqueue_order(order.clone());
             }
             OrderSide::Sell => {
                 self.asks
                     .entry(price)
                     .or_insert_with(|| PriceLevel::new(price))
-                    .add_order(order.clone());
+                    .enqueue_order(order.clone());
             }
         }
 
         self.orders.insert(order_id, order);
     }
 
-    /// Cancel an order by ID
+    /// Cancel an order from the orderbook
+    /// This is a high-level operation that removes the order from both the price level queue and global order map
     pub fn cancel_order(&mut self, order_id: Uuid) -> Result<Order, String> {
         let order = self.orders.remove(&order_id).ok_or("Order not found")?;
-
         let price = order.price.ok_or("Order has no price")?;
 
         match order.side {
             OrderSide::Buy => {
                 if let Some(level) = self.bids.get_mut(&Reverse(price)) {
-                    level.remove_order(order_id);
+                    level.dequeue_order_by_id(order_id);
                     if level.is_empty() {
                         self.bids.remove(&Reverse(price));
                     }
@@ -71,7 +70,7 @@ impl OrderBook {
             }
             OrderSide::Sell => {
                 if let Some(level) = self.asks.get_mut(&price) {
-                    level.remove_order(order_id);
+                    level.dequeue_order_by_id(order_id);
                     if level.is_empty() {
                         self.asks.remove(&price);
                     }
@@ -82,30 +81,25 @@ impl OrderBook {
         Ok(order)
     }
 
-    /// Get order by ID
     pub fn get_order(&self, order_id: Uuid) -> Option<&Order> {
         self.orders.get(&order_id)
     }
 
-    /// Get or create user balance
     pub fn get_or_create_balance(&mut self, user_id: Uuid) -> &mut UserBalance {
         self.user_balances
             .entry(user_id)
             .or_insert_with(|| UserBalance::new(user_id))
     }
 
-    /// Get user balance
     pub fn get_user_balance(&self, user_id: Uuid) -> Option<&UserBalance> {
         self.user_balances.get(&user_id)
     }
 
-    /// Add funds to user balance
     pub fn add_funds(&mut self, user_id: Uuid, currency: &str, amount: f64) {
         let balance = self.get_or_create_balance(user_id);
         balance.add_balance(currency, amount);
     }
 
-    /// Check if user has sufficient balance
     pub fn has_sufficient_balance(
         &self,
         user_id: Uuid,
@@ -119,7 +113,6 @@ impl OrderBook {
         }
     }
 
-    /// Deduct balance from user
     pub fn deduct_balance(
         &mut self,
         user_id: Uuid,
@@ -133,13 +126,11 @@ impl OrderBook {
         balance.subtract_balance(currency, amount)
     }
 
-    /// Credit balance to user
     pub fn credit_balance(&mut self, user_id: Uuid, currency: &str, amount: f64) {
         let balance = self.get_or_create_balance(user_id);
         balance.add_balance(currency, amount);
     }
 
-    /// Get market depth (top N levels for bids and asks)
     pub fn get_depth(&self, levels: usize) -> (Vec<(Price, Quantity)>, Vec<(Price, Quantity)>) {
         let bids: Vec<(Price, Quantity)> = self
             .bids
