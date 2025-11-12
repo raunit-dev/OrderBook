@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use tokio::sync::oneshot;
 use uuid::Uuid;
 
-/// Commands sent from HTTP handlers to the OrderBook engine thread
+// Commands sent from HTTP handlers to the OrderBook engine thread
 pub enum OrderBookCommand {
     // Order commands
     PlaceLimitOrder {

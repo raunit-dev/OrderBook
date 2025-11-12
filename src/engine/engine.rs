@@ -1,10 +1,9 @@
 use crate::messages::{OrderBookCommand, OrderBookResponse};
 use crate::orderbook::OrderBook;
 use crate::types::Order;
+use crate::types::OrderSide::*;
 use tokio::sync::mpsc;
 
-/// Starts the OrderBook engine in a separate thread
-/// Receives commands via mpsc channel and processes them sequentially
 pub async fn run_orderbook_engine(mut rx: mpsc::Receiver<OrderBookCommand>) {
     let mut orderbook = OrderBook::new();
 
@@ -24,7 +23,7 @@ pub async fn run_orderbook_engine(mut rx: mpsc::Receiver<OrderBookCommand>) {
 
                 // Check balance before placing order
                 match side {
-                    crate::types::OrderSide::Buy => {
+                   Buy => {
                         // Need USD to buy BTC
                         let usd_needed = price.to_f64() * quantity.to_f64();
                         if !orderbook.has_sufficient_balance(user_id, "USD", usd_needed) {
@@ -41,7 +40,7 @@ pub async fn run_orderbook_engine(mut rx: mpsc::Receiver<OrderBookCommand>) {
                             continue;
                         }
                     }
-                    crate::types::OrderSide::Sell => {
+                 Sell => {
                         // Need BTC to sell
                         let btc_needed = quantity.to_f64();
                         if !orderbook.has_sufficient_balance(user_id, "BTC", btc_needed) {
