@@ -1,3 +1,4 @@
+use crate::types::Quantity;
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
 
@@ -5,7 +6,7 @@ use std::cmp::Ordering;
 pub struct Price(u64);
 
 impl Price {
-    const MULTIPLIER: u64 = 1_000_000;
+    pub const MULTIPLIER: u64 = 1_000_000;
 
     pub fn from_f64(value: f64) -> Self {
         let fixed_point = (value * Self::MULTIPLIER as f64).round() as u64;
@@ -14,6 +15,17 @@ impl Price {
 
     pub fn to_f64(self) -> f64 {
         self.0 as f64 / Self::MULTIPLIER as f64
+    }
+
+    pub fn raw(self) -> u64 {
+        self.0
+    }
+
+    /// USD value in millionths (same scale as Price) of `quantity` BTC at this price.
+    /// Computed in u128 to avoid overflow; caller may lossily truncate to u64.
+    pub fn times_quantity(self, quantity: Quantity) -> u64 {
+        let product = (self.raw() as u128) * (quantity.raw() as u128);
+        (product / Quantity::MULTIPLIER as u128) as u64
     }
 }
 

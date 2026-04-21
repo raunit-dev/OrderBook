@@ -1,5 +1,5 @@
 use crate::orderbook::{OrderBookError, PriceLevel};
-use crate::types::{Order, OrderSide, Price, Quantity, UserBalance};
+use crate::types::{Currency, Order, OrderSide, Price, Quantity, UserBalance};
 use std::cmp::Reverse;
 use std::collections::{BTreeMap, HashMap};
 use uuid::Uuid;
@@ -110,27 +110,25 @@ impl OrderBook {
         self.user_balances.get(&user_id)
     }
 
-    pub fn add_funds(&mut self, user_id: Uuid, currency: &str, amount: f64) {
-        self.get_or_create_balance(user_id)
-            .add_balance(currency, amount);
+    pub fn add_funds(&mut self, user_id: Uuid, currency: Currency, amount: u64) {
+        self.get_or_create_balance(user_id).add(currency, amount);
     }
 
     pub fn deduct_balance(
         &mut self,
         user_id: Uuid,
-        currency: &str,
-        amount: f64,
+        currency: Currency,
+        amount: u64,
     ) -> Result<(), OrderBookError> {
         let balance = self
             .user_balances
             .get_mut(&user_id)
             .ok_or(OrderBookError::UserNotFound(user_id))?;
-        balance.subtract_balance(currency, amount)
+        balance.subtract(currency, amount)
     }
 
-    pub fn credit_balance(&mut self, user_id: Uuid, currency: &str, amount: f64) {
-        self.get_or_create_balance(user_id)
-            .add_balance(currency, amount);
+    pub fn credit_balance(&mut self, user_id: Uuid, currency: Currency, amount: u64) {
+        self.get_or_create_balance(user_id).add(currency, amount);
     }
 
     pub fn get_depth(&self, levels: usize) -> (DepthLevels, DepthLevels) {

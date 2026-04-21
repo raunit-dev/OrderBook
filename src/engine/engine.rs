@@ -1,7 +1,6 @@
 use crate::messages::{OrderBookCommand, OrderBookResponse};
 use crate::orderbook::{OrderBook, OrderBookError};
-use crate::types::Order;
-use crate::types::OrderSide::*;
+use crate::types::{Currency, Order, OrderSide::*};
 use tokio::sync::mpsc;
 
 pub async fn run_orderbook_engine(mut rx: mpsc::Receiver<OrderBookCommand>) {
@@ -21,14 +20,13 @@ pub async fn run_orderbook_engine(mut rx: mpsc::Receiver<OrderBookCommand>) {
                 let mut order = Order::new_limit(user_id, side, price, quantity);
                 let order_id = order.id;
 
-                // Reserve funds before the order touches the book.
+                // Reserve funds in integer minor units before the order touches the book.
                 let reservation = match side {
-                    Buy => orderbook.deduct_balance(
-                        user_id,
-                        "USD",
-                        price.to_f64() * quantity.to_f64(),
-                    ),
-                    Sell => orderbook.deduct_balance(user_id, "BTC", quantity.to_f64()),
+                    Buy => {
+                        let usd_needed = price.times_quantity(quantity);
+                        orderbook.deduct_balance(user_id, Currency::Usd, usd_needed)
+                    }
+                    Sell => orderbook.deduct_balance(user_id, Currency::Btc, quantity.raw()),
                 };
                 if let Err(e) = reservation {
                     let _ = response_tx.send(OrderBookResponse::Error(e));
@@ -71,8 +69,6 @@ pub async fn run_orderbook_engine(mut rx: mpsc::Receiver<OrderBookCommand>) {
                 let mut order = Order::new_market(user_id, side, quantity);
                 let order_id = order.id;
 
-                // Market orders don't pre-reserve — settlement deducts per fill.
-
                 match orderbook.match_market_order(&mut order) {
                     Ok(trades) => {
                         let status = if order.is_fully_filled() {
@@ -106,18 +102,20 @@ pub async fn run_orderbook_engine(mut rx: mpsc::Receiver<OrderBookCommand>) {
                         continue;
                     }
 
-                    // Refund the reserved balance on the unfilled remainder.
+                    // Refund reserved balance on the unfilled remainder (integer math).
                     match cancelled.side {
-                        crate::types::OrderSide::Buy => {
+                        Buy => {
                             if let Some(price) = cancelled.price {
-                                let usd_refund =
-                                    price.to_f64() * cancelled.remaining_quantity.to_f64();
-                                orderbook.credit_balance(user_id, "USD", usd_refund);
+                                let refund = price.times_quantity(cancelled.remaining_quantity);
+                                orderbook.credit_balance(user_id, Currency::Usd, refund);
                             }
                         }
-                        crate::types::OrderSide::Sell => {
-                            let btc_refund = cancelled.remaining_quantity.to_f64();
-                            orderbook.credit_balance(user_id, "BTC", btc_refund);
+                        Sell => {
+                            orderbook.credit_balance(
+                                user_id,
+                                Currency::Btc,
+                                cancelled.remaining_quantity.raw(),
+                            );
                         }
                     }
 
@@ -157,10 +155,8 @@ pub async fn run_orderbook_engine(mut rx: mpsc::Receiver<OrderBookCommand>) {
                 amount,
                 response_tx,
             } => {
-                orderbook.add_funds(user_id, &currency, amount);
-                let new_balance = orderbook
-                    .get_or_create_balance(user_id)
-                    .get_balance(&currency);
+                orderbook.add_funds(user_id, currency, amount);
+                let new_balance = orderbook.get_or_create_balance(user_id).get(currency);
 
                 let _ = response_tx.send(OrderBookResponse::FundsAdded {
                     user_id,

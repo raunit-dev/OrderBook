@@ -44,9 +44,8 @@ impl ResponseError for ApiError {
 impl From<OrderBookError> for ApiError {
     fn from(err: OrderBookError) -> Self {
         match err {
-            // Client-fixable inputs: bad currency, not enough funds, missing price, no liquidity.
+            // Client-fixable inputs: not enough funds, missing price, no liquidity.
             OrderBookError::InsufficientBalance { .. }
-            | OrderBookError::UnknownCurrency(_)
             | OrderBookError::MissingPrice
             | OrderBookError::InsufficientLiquidity => ApiError::BadRequest(err.to_string()),
 

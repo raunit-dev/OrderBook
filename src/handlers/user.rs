@@ -1,8 +1,10 @@
 use actix_web::{get, post, web, HttpResponse, Responder};
 use serde::Deserialize;
+use std::collections::HashMap;
 
 use crate::messages::{OrderBookCommand, OrderBookResponse};
 use crate::state::AppState;
+use crate::types::Currency;
 use crate::utils::error::ApiError;
 use crate::utils::AuthUser;
 
@@ -26,9 +28,16 @@ pub async fn get_balance(
 
     match response {
         OrderBookResponse::UserBalance { balance } => {
+            // Render balances as human-readable decimals at the API edge.
+            let display: HashMap<String, f64> = balance
+                .balances
+                .iter()
+                .map(|(c, raw)| (c.to_string(), c.to_f64(*raw)))
+                .collect();
+
             Ok(HttpResponse::Ok().json(serde_json::json!({
                 "user_id": balance.user_id.to_string(),
-                "balances": balance.balances,
+                "balances": display,
             })))
         }
         OrderBookResponse::Error(err) => Err(err.into()),
@@ -44,20 +53,20 @@ pub async fn onramp(
     state: web::Data<AppState>,
     body: web::Json<OnrampRequest>,
 ) -> Result<impl Responder, ApiError> {
-    if body.currency != "USD" && body.currency != "BTC" {
-        return Err(ApiError::BadRequest(
-            "currency must be 'USD' or 'BTC'".to_string(),
-        ));
-    }
+    let currency = Currency::parse(&body.currency)
+        .ok_or_else(|| ApiError::BadRequest("currency must be 'USD' or 'BTC'".to_string()))?;
+
     if body.amount <= 0.0 {
         return Err(ApiError::BadRequest("amount must be positive".to_string()));
     }
 
+    let amount_raw = currency.from_f64(body.amount);
+
     let response = state
         .send_command(|response_tx| OrderBookCommand::AddFunds {
             user_id: user.id,
-            currency: body.currency.clone(),
-            amount: body.amount,
+            currency,
+            amount: amount_raw,
             response_tx,
         })
         .await?;
@@ -69,8 +78,8 @@ pub async fn onramp(
             new_balance,
         } => Ok(HttpResponse::Ok().json(serde_json::json!({
             "user_id": user_id.to_string(),
-            "currency": currency,
-            "new_balance": new_balance,
+            "currency": currency.to_string(),
+            "new_balance": currency.to_f64(new_balance),
         }))),
         _ => Err(ApiError::InternalError(
             "unexpected response from orderbook".to_string(),

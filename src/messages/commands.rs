@@ -1,5 +1,5 @@
 use crate::orderbook::OrderBookError;
-use crate::types::{OrderSide, Price, Quantity, Trade, UserBalance};
+use crate::types::{Currency, OrderSide, Price, Quantity, Trade, UserBalance};
 use tokio::sync::oneshot;
 use uuid::Uuid;
 
@@ -38,8 +38,8 @@ pub enum OrderBookCommand {
     // Balance commands
     AddFunds {
         user_id: Uuid,
-        currency: String,
-        amount: f64,
+        currency: Currency,
+        amount: u64, // integer minor units of `currency`
         response_tx: oneshot::Sender<OrderBookResponse>,
     },
 }
@@ -70,8 +70,8 @@ pub enum OrderBookResponse {
     // Balance responses
     FundsAdded {
         user_id: Uuid,
-        currency: String,
-        new_balance: f64,
+        currency: Currency,
+        new_balance: u64, // integer minor units
     },
 
     // Typed engine error (e.g. InsufficientBalance, OrderNotFound, …)

@@ -5,7 +5,7 @@ use std::ops::{Add, AddAssign, Sub, SubAssign};
 pub struct Quantity(u64);
 
 impl Quantity {
-    const MULTIPLIER: u64 = 100_000_000; // 10^8
+    pub const MULTIPLIER: u64 = 100_000_000; // satoshi scale (10^8)
 
     pub fn from_f64(value: f64) -> Self {
         let fixed_point = (value * Self::MULTIPLIER as f64).round() as u64;
@@ -14,6 +14,10 @@ impl Quantity {
 
     pub fn to_f64(self) -> f64 {
         self.0 as f64 / Self::MULTIPLIER as f64
+    }
+
+    pub fn raw(self) -> u64 {
+        self.0
     }
 
     pub fn is_zero(self) -> bool {
