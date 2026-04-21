@@ -69,7 +69,4 @@ impl Order {
             self.status = OrderStatus::PartiallyFilled;
         }
     }
-    pub fn cancel(&mut self) {
-        self.status = OrderStatus::Cancelled;
-    }
 }

@@ -5,25 +5,6 @@ use uuid::Uuid;
 use crate::orderbook::OrderBookError;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct User {
-    pub id: Uuid,
-    pub username: String,
-    pub email: String,
-    pub password_hash: String,
-}
-
-impl User {
-    pub fn new(username: String, email: String, password_hash: String) -> Self {
-        User {
-            id: Uuid::new_v4(),
-            username,
-            email,
-            password_hash,
-        }
-    }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UserBalance {
     pub user_id: Uuid,
     pub balances: HashMap<String, f64>,
