@@ -1,0 +1,21 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: orderbook-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: orderbook
+      POSTGRES_PASSWORD: orderbook
+      POSTGRES_DB: orderbook
+    ports:
+      - "5432:5432"
+    volumes:
+      - orderbook_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U orderbook"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  orderbook_pgdata:
