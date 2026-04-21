@@ -22,11 +22,11 @@ async fn main() -> std::io::Result<()> {
 
     env_logger::init_from_env(env_logger::Env::new().default_filter_or("info"));
 
-    println!("🚀 Starting Orderbook System...");
+    println!("Starting Orderbook System...");
 
     // --- Postgres: pool + run migrations ---
-    let database_url = std::env::var("DATABASE_URL")
-        .expect("DATABASE_URL must be set (see .env.example)");
+    let database_url =
+        std::env::var("DATABASE_URL").expect("DATABASE_URL must be set (see .env.example)");
 
     let db_pool = PgPoolOptions::new()
         .max_connections(10)
@@ -39,7 +39,7 @@ async fn main() -> std::io::Result<()> {
         .await
         .expect("Failed to run database migrations");
 
-    println!("🗄️  Postgres connected, migrations applied");
+    println!("Postgres connected, migrations applied");
 
     // --- Orderbook engine: single owner task + command channel ---
     let (orderbook_tx, orderbook_rx) = mpsc::channel(100);
@@ -51,8 +51,8 @@ async fn main() -> std::io::Result<()> {
     // --- JWT auth middleware ---
     let auth = HttpAuthentication::bearer(jwt_validator);
 
-    println!("📊 Orderbook engine started");
-    println!("🌐 Starting HTTP server on http://127.0.0.1:8080");
+    println!("Orderbook engine started");
+    println!("Starting HTTP server on http://127.0.0.1:8080");
 
     HttpServer::new(move || {
         App::new()
