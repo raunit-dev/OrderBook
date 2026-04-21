@@ -3,26 +3,6 @@
 version = 4
 
 [[package]]
-name = "Orderbook"
-version = "0.1.0"
-dependencies = [
- "actix-web",
- "actix-web-httpauth",
- "anyhow",
- "bcrypt",
- "chrono",
- "dotenvy",
- "env_logger",
- "jsonwebtoken",
- "serde",
- "serde_json",
- "sqlx",
- "thiserror",
- "tokio",
- "uuid",
-]
-
-[[package]]
 name = "actix-codec"
 version = "0.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1540,6 +1520,26 @@ name = "once_cell_polyfill"
 version = "1.70.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "384b8ab6d37215f3c5301a95a4accb5d64aa607f1fcb26a11b5303878451b4fe"
+
+[[package]]
+name = "orderbook"
+version = "0.1.0"
+dependencies = [
+ "actix-web",
+ "actix-web-httpauth",
+ "anyhow",
+ "bcrypt",
+ "chrono",
+ "dotenvy",
+ "env_logger",
+ "jsonwebtoken",
+ "serde",
+ "serde_json",
+ "sqlx",
+ "thiserror",
+ "tokio",
+ "uuid",
+]
 
 [[package]]
 name = "p256"

@@ -60,7 +60,7 @@ pub async fn onramp(
         return Err(ApiError::BadRequest("amount must be positive".to_string()));
     }
 
-    let amount_raw = currency.from_f64(body.amount);
+    let amount_raw = currency.to_raw(body.amount);
 
     let response = state
         .send_command(|response_tx| OrderBookCommand::AddFunds {

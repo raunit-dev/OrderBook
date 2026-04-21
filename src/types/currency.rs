@@ -22,7 +22,7 @@ impl Currency {
     }
 
     /// Convert a decimal amount (e.g. from a JSON body) into integer minor units.
-    pub fn from_f64(self, value: f64) -> u64 {
+    pub fn to_raw(self, value: f64) -> u64 {
         (value * self.multiplier() as f64).round() as u64
     }
 
