@@ -1,5 +1,6 @@
 use actix_web::{middleware::Logger, web, App, HttpServer};
 use actix_web_httpauth::middleware::HttpAuthentication;
+use sqlx::postgres::PgPoolOptions;
 use tokio::sync::mpsc;
 
 mod engine;
@@ -11,66 +12,74 @@ mod types;
 mod utils;
 
 use engine::run_orderbook_engine;
-use handlers::auth::UserStore;
 use state::AppState;
 use utils::jwt_validator;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    // Initialize logger
+    // Load environment variables from .env (no-op if the file isn't present)
+    dotenvy::dotenv().ok();
+
     env_logger::init_from_env(env_logger::Env::new().default_filter_or("info"));
 
     println!("🚀 Starting Orderbook System...");
 
-    // Create mpsc channel for orderbook commands
-    let (orderbook_tx, orderbook_rx) = mpsc::channel(100);
+    // --- Postgres: pool + run migrations ---
+    let database_url = std::env::var("DATABASE_URL")
+        .expect("DATABASE_URL must be set (see .env.example)");
 
-    // Start orderbook engine in background
+    let db_pool = PgPoolOptions::new()
+        .max_connections(10)
+        .connect(&database_url)
+        .await
+        .expect("Failed to connect to Postgres");
+
+    sqlx::migrate!("./migrations")
+        .run(&db_pool)
+        .await
+        .expect("Failed to run database migrations");
+
+    println!("🗄️  Postgres connected, migrations applied");
+
+    // --- Orderbook engine: single owner task + command channel ---
+    let (orderbook_tx, orderbook_rx) = mpsc::channel(100);
     tokio::spawn(run_orderbook_engine(orderbook_rx));
 
-    // Create shared state
-    let app_state = web::Data::new(AppState::new(orderbook_tx));
-    let user_store = web::Data::new(UserStore::new());
+    // --- Shared app state: pool + channel sender ---
+    let app_state = web::Data::new(AppState::new(orderbook_tx, db_pool));
 
-    // Create JWT auth middleware
+    // --- JWT auth middleware ---
     let auth = HttpAuthentication::bearer(jwt_validator);
 
     println!("📊 Orderbook engine started");
     println!("🌐 Starting HTTP server on http://127.0.0.1:8080");
 
-    // Start HTTP server
     HttpServer::new(move || {
         App::new()
             .wrap(Logger::default())
             .app_data(app_state.clone())
-            .app_data(user_store.clone())
-            // Public routes
             .service(
                 web::scope("/api")
-                    // Health check
                     .service(handlers::health)
-                    // Auth routes (no auth required)
                     .service(
                         web::scope("/auth")
                             .service(handlers::signup)
-                            .service(handlers::signin)
+                            .service(handlers::signin),
                     )
-                    // Market data (no auth required)
                     .service(handlers::get_orderbook)
-                    // Protected routes (auth required)
                     .service(
                         web::scope("/orders")
                             .wrap(auth.clone())
                             .service(handlers::create_limit_order)
                             .service(handlers::create_market_order)
-                            .service(handlers::cancel_order)
+                            .service(handlers::cancel_order),
                     )
                     .service(
                         web::scope("/user")
                             .wrap(auth.clone())
                             .service(handlers::get_balance)
-                            .service(handlers::onramp)
-                    )
+                            .service(handlers::onramp),
+                    ),
             )
     })
     .bind(("127.0.0.1", 8080))?
