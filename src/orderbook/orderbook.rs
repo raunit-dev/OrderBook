@@ -6,10 +6,19 @@ use uuid::Uuid;
 
 pub type DepthLevels = Vec<(Price, Quantity)>;
 
+/// Where a resting order lives in the book, indexed from `orders` for O(log n) cancellation.
+/// The actual Order value lives inside the corresponding PriceLevel's VecDeque — one source of truth.
+#[derive(Debug, Clone, Copy)]
+pub struct OrderLocation {
+    pub side: OrderSide,
+    pub price: Price,
+}
+
 pub struct OrderBook {
     pub bids: BTreeMap<Reverse<Price>, PriceLevel>,
     pub asks: BTreeMap<Price, PriceLevel>,
-    pub orders: HashMap<Uuid, Order>,
+    /// Index by order id → where it lives. NOT a second copy of the Order.
+    pub orders: HashMap<Uuid, OrderLocation>,
     pub user_balances: HashMap<Uuid, UserBalance>,
 }
 
@@ -34,52 +43,59 @@ impl OrderBook {
     /// Add a limit order to the book, placing it at the tail of its price-level FIFO queue.
     pub fn add_order(&mut self, order: Order) {
         let order_id = order.id;
+        let side = order.side;
         let price = order.price.expect("limit order must have a price");
 
-        match order.side {
+        match side {
             OrderSide::Buy => {
                 self.bids
                     .entry(Reverse(price))
                     .or_default()
-                    .enqueue_order(order.clone());
+                    .enqueue_order(order);
             }
             OrderSide::Sell => {
-                self.asks
-                    .entry(price)
-                    .or_default()
-                    .enqueue_order(order.clone());
+                self.asks.entry(price).or_default().enqueue_order(order);
             }
         }
 
-        self.orders.insert(order_id, order);
+        self.orders.insert(order_id, OrderLocation { side, price });
     }
 
-    /// Remove an order from both the price-level queue and the global order map.
+    /// Remove an order from both the price-level queue and the location index.
     pub fn cancel_order(&mut self, order_id: Uuid) -> Result<Order, OrderBookError> {
-        let order = self
+        let loc = self
             .orders
             .remove(&order_id)
             .ok_or(OrderBookError::OrderNotFound(order_id))?;
-        let price = order.price.ok_or(OrderBookError::MissingPrice)?;
 
-        match order.side {
+        let order = match loc.side {
             OrderSide::Buy => {
-                if let Some(level) = self.bids.get_mut(&Reverse(price)) {
-                    level.dequeue_order_by_id(order_id);
-                    if level.is_empty() {
-                        self.bids.remove(&Reverse(price));
-                    }
+                let level = self
+                    .bids
+                    .get_mut(&Reverse(loc.price))
+                    .ok_or(OrderBookError::OrderNotFound(order_id))?;
+                let order = level
+                    .dequeue_order_by_id(order_id)
+                    .ok_or(OrderBookError::OrderNotFound(order_id))?;
+                if level.is_empty() {
+                    self.bids.remove(&Reverse(loc.price));
                 }
+                order
             }
             OrderSide::Sell => {
-                if let Some(level) = self.asks.get_mut(&price) {
-                    level.dequeue_order_by_id(order_id);
-                    if level.is_empty() {
-                        self.asks.remove(&price);
-                    }
+                let level = self
+                    .asks
+                    .get_mut(&loc.price)
+                    .ok_or(OrderBookError::OrderNotFound(order_id))?;
+                let order = level
+                    .dequeue_order_by_id(order_id)
+                    .ok_or(OrderBookError::OrderNotFound(order_id))?;
+                if level.is_empty() {
+                    self.asks.remove(&loc.price);
                 }
+                order
             }
-        }
+        };
 
         Ok(order)
     }

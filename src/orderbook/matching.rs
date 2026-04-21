@@ -80,10 +80,6 @@ impl OrderBook {
 
                         if maker_filled {
                             self.orders.remove(&maker_id);
-                        } else if let Some(price_level) = self.asks.get(&best_ask_price) {
-                            if let Some(maker_order) = price_level.front() {
-                                self.orders.insert(maker_id, maker_order.clone());
-                            }
                         }
                     }
 
@@ -146,10 +142,6 @@ impl OrderBook {
 
                         if maker_filled {
                             self.orders.remove(&maker_id);
-                        } else if let Some(price_level) = self.bids.get(&Reverse(best_bid_price)) {
-                            if let Some(maker_order) = price_level.front() {
-                                self.orders.insert(maker_id, maker_order.clone());
-                            }
                         }
                     }
 

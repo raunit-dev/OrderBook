@@ -31,10 +31,6 @@ impl PriceLevel {
         self.orders.is_empty()
     }
 
-    pub fn front(&self) -> Option<&Order> {
-        self.orders.front()
-    }
-
     pub fn front_mut(&mut self) -> Option<&mut Order> {
         self.orders.front_mut()
     }
