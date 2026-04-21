@@ -1,10 +1,10 @@
-use crate::orderbook::OrderBook;
+use crate::orderbook::{OrderBook, OrderBookError};
 use crate::types::{Order, OrderSide, OrderType, Quantity, Trade};
 use std::cmp::Reverse;
 
 impl OrderBook {
     /// Main entry point for matching an order against the orderbook
-    pub fn match_order(&mut self, mut order: Order) -> Result<Vec<Trade>, String> {
+    pub fn match_order(&mut self, mut order: Order) -> Result<Vec<Trade>, OrderBookError> {
         let mut trades = Vec::new();
 
         match order.order_type {
@@ -22,9 +22,12 @@ impl OrderBook {
         Ok(trades)
     }
 
-    fn match_limit_order(&mut self, taker_order: &mut Order) -> Result<Vec<Trade>, String> {
+    fn match_limit_order(
+        &mut self,
+        taker_order: &mut Order,
+    ) -> Result<Vec<Trade>, OrderBookError> {
         let mut trades = Vec::new();
-        let taker_price = taker_order.price.ok_or("Limit order must have price")?;
+        let taker_price = taker_order.price.ok_or(OrderBookError::MissingPrice)?;
 
         match taker_order.side {
             OrderSide::Buy => {

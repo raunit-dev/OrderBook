@@ -45,9 +45,8 @@ pub async fn get_balance(
                 "balances": balance.balances,
             })))
         }
-        OrderBookResponse::Error { message } => {
-            Err(ApiError::NotFound(message))
-        }
+        OrderBookResponse::Error(err) => Err(err.into()),
+        OrderBookResponse::Rejected(msg) => Err(ApiError::Forbidden(msg)),
         _ => Err(ApiError::InternalError("Unexpected response from orderbook".to_string())),
     }
 }

@@ -1,4 +1,4 @@
-use crate::orderbook::PriceLevel;
+use crate::orderbook::{OrderBookError, PriceLevel};
 use crate::types::{Order, OrderSide, Price, Quantity, UserBalance};
 use std::cmp::Reverse;
 use std::collections::{BTreeMap, HashMap};
@@ -55,9 +55,12 @@ impl OrderBook {
 
     /// Cancel an order from the orderbook
     /// This is a high-level operation that removes the order from both the price level queue and global order map
-    pub fn cancel_order(&mut self, order_id: Uuid) -> Result<Order, String> {
-        let order = self.orders.remove(&order_id).ok_or("Order not found")?;
-        let price = order.price.ok_or("Order has no price")?;
+    pub fn cancel_order(&mut self, order_id: Uuid) -> Result<Order, OrderBookError> {
+        let order = self
+            .orders
+            .remove(&order_id)
+            .ok_or(OrderBookError::OrderNotFound(order_id))?;
+        let price = order.price.ok_or(OrderBookError::MissingPrice)?;
 
         match order.side {
             OrderSide::Buy => {
@@ -100,29 +103,16 @@ impl OrderBook {
         balance.add_balance(currency, amount);
     }
 
-    pub fn has_sufficient_balance(
-        &self,
-        user_id: Uuid,
-        currency: &str,
-        required_amount: f64,
-    ) -> bool {
-        if let Some(balance) = self.user_balances.get(&user_id) {
-            balance.get_balance(currency) >= required_amount
-        } else {
-            false
-        }
-    }
-
     pub fn deduct_balance(
         &mut self,
         user_id: Uuid,
         currency: &str,
         amount: f64,
-    ) -> Result<(), String> {
+    ) -> Result<(), OrderBookError> {
         let balance = self
             .user_balances
             .get_mut(&user_id)
-            .ok_or("User not found")?;
+            .ok_or(OrderBookError::UserNotFound(user_id))?;
         balance.subtract_balance(currency, amount)
     }
 

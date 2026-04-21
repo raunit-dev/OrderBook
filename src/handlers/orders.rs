@@ -71,9 +71,8 @@ pub async fn create_limit_order(
                 "trades": trades,
             })))
         }
-        OrderBookResponse::Error { message } => {
-            Err(ApiError::BadRequest(message))
-        }
+        OrderBookResponse::Error(err) => Err(err.into()),
+        OrderBookResponse::Rejected(msg) => Err(ApiError::Forbidden(msg)),
         _ => Err(ApiError::InternalError("Unexpected response from orderbook".to_string())),
     }
 }
@@ -122,9 +121,8 @@ pub async fn create_market_order(
                 "trades": trades,
             })))
         }
-        OrderBookResponse::Error { message } => {
-            Err(ApiError::BadRequest(message))
-        }
+        OrderBookResponse::Error(err) => Err(err.into()),
+        OrderBookResponse::Rejected(msg) => Err(ApiError::Forbidden(msg)),
         _ => Err(ApiError::InternalError("Unexpected response from orderbook".to_string())),
     }
 }
@@ -167,9 +165,8 @@ pub async fn cancel_order(
                 "cancelled": success,
             })))
         }
-        OrderBookResponse::Error { message } => {
-            Err(ApiError::BadRequest(message))
-        }
+        OrderBookResponse::Error(err) => Err(err.into()),
+        OrderBookResponse::Rejected(msg) => Err(ApiError::Forbidden(msg)),
         _ => Err(ApiError::InternalError("Unexpected response from orderbook".to_string())),
     }
 }

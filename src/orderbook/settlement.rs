@@ -1,4 +1,4 @@
-use crate::orderbook::OrderBook;
+use crate::orderbook::{OrderBook, OrderBookError};
 use crate::types::{OrderSide, Trade};
 
 impl OrderBook {
@@ -6,7 +6,7 @@ impl OrderBook {
         &mut self,
         trade: &Trade,
         taker_side: OrderSide,
-    ) -> Result<(), String> {
+    ) -> Result<(), OrderBookError> {
         let btc_amount = trade.quantity.to_f64();
         let usd_amount = trade.price.to_f64() * btc_amount;
 

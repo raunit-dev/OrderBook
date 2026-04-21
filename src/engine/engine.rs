@@ -21,42 +21,22 @@ pub async fn run_orderbook_engine(mut rx: mpsc::Receiver<OrderBookCommand>) {
                 let order = Order::new_limit(user_id, side, price, quantity);
                 let order_id = order.id;
 
-                // Check balance before placing order
-                match side {
-                   Buy => {
-                        // Need USD to buy BTC
+                // Reserve funds for the order. deduct_balance is the single source
+                // of truth for "do you have enough?" — it returns a typed error.
+                let reservation = match side {
+                    Buy => {
                         let usd_needed = price.to_f64() * quantity.to_f64();
-                        if !orderbook.has_sufficient_balance(user_id, "USD", usd_needed) {
-                            let _ = response_tx.send(OrderBookResponse::Error {
-                                message: "Insufficient USD balance".to_string(),
-                            });
-                            continue;
-                        }
-                        // Reserve USD
-                        if let Err(e) = orderbook.deduct_balance(user_id, "USD", usd_needed) {
-                            let _ = response_tx.send(OrderBookResponse::Error {
-                                message: format!("Failed to reserve USD: {}", e),
-                            });
-                            continue;
-                        }
+                        orderbook.deduct_balance(user_id, "USD", usd_needed)
                     }
-                 Sell => {
-                        // Need BTC to sell
+                    Sell => {
                         let btc_needed = quantity.to_f64();
-                        if !orderbook.has_sufficient_balance(user_id, "BTC", btc_needed) {
-                            let _ = response_tx.send(OrderBookResponse::Error {
-                                message: "Insufficient BTC balance".to_string(),
-                            });
-                            continue;
-                        }
-                        // Reserve BTC
-                        if let Err(e) = orderbook.deduct_balance(user_id, "BTC", btc_needed) {
-                            let _ = response_tx.send(OrderBookResponse::Error {
-                                message: format!("Failed to reserve BTC: {}", e),
-                            });
-                            continue;
-                        }
+                        orderbook.deduct_balance(user_id, "BTC", btc_needed)
                     }
+                };
+
+                if let Err(e) = reservation {
+                    let _ = response_tx.send(OrderBookResponse::Error(e));
+                    continue;
                 }
 
                 match orderbook.match_order(order) {
@@ -74,9 +54,7 @@ pub async fn run_orderbook_engine(mut rx: mpsc::Receiver<OrderBookCommand>) {
                         });
                     }
                     Err(e) => {
-                        let _ = response_tx.send(OrderBookResponse::Error {
-                            message: format!("Failed to place order: {}", e),
-                        });
+                        let _ = response_tx.send(OrderBookResponse::Error(e));
                     }
                 }
             }
@@ -90,9 +68,7 @@ pub async fn run_orderbook_engine(mut rx: mpsc::Receiver<OrderBookCommand>) {
                 let order = Order::new_market(user_id, side, quantity);
                 let order_id = order.id;
 
-                // For market orders, we need to check balance based on estimated execution
-                // For simplicity, we'll skip balance check here and let matching engine handle it
-                // In production, you'd estimate the required balance based on orderbook depth
+                // Market orders don't pre-reserve — settlement deducts on each fill.
 
                 match orderbook.match_order(order) {
                     Ok(trades) => {
@@ -109,9 +85,7 @@ pub async fn run_orderbook_engine(mut rx: mpsc::Receiver<OrderBookCommand>) {
                         });
                     }
                     Err(e) => {
-                        let _ = response_tx.send(OrderBookResponse::Error {
-                            message: format!("Failed to place market order: {}", e),
-                        });
+                        let _ = response_tx.send(OrderBookResponse::Error(e));
                     }
                 }
             }
@@ -125,16 +99,15 @@ pub async fn run_orderbook_engine(mut rx: mpsc::Receiver<OrderBookCommand>) {
                     Ok(cancelled_order) => {
                         // Verify ownership
                         if cancelled_order.user_id != user_id {
-                            let _ = response_tx.send(OrderBookResponse::Error {
-                                message: "Not authorized to cancel this order".to_string(),
-                            });
+                            let _ = response_tx.send(OrderBookResponse::Rejected(
+                                "not authorized to cancel this order".to_string(),
+                            ));
                             continue;
                         }
 
-                        // Refund reserved balance
+                        // Refund reserved balance for the unfilled remainder
                         match cancelled_order.side {
                             crate::types::OrderSide::Buy => {
-                                // Refund USD
                                 if let Some(price) = cancelled_order.price {
                                     let usd_refund = price.to_f64()
                                         * cancelled_order.remaining_quantity.to_f64();
@@ -142,7 +115,6 @@ pub async fn run_orderbook_engine(mut rx: mpsc::Receiver<OrderBookCommand>) {
                                 }
                             }
                             crate::types::OrderSide::Sell => {
-                                // Refund BTC
                                 let btc_refund = cancelled_order.remaining_quantity.to_f64();
                                 orderbook.credit_balance(user_id, "BTC", btc_refund);
                             }
@@ -154,9 +126,7 @@ pub async fn run_orderbook_engine(mut rx: mpsc::Receiver<OrderBookCommand>) {
                         });
                     }
                     Err(e) => {
-                        let _ = response_tx.send(OrderBookResponse::Error {
-                            message: format!("Failed to cancel order: {}", e),
-                        });
+                        let _ = response_tx.send(OrderBookResponse::Error(e));
                     }
                 }
             }
@@ -170,14 +140,17 @@ pub async fn run_orderbook_engine(mut rx: mpsc::Receiver<OrderBookCommand>) {
                 user_id,
                 response_tx,
             } => {
-                if let Some(balance) = orderbook.get_user_balance(user_id) {
-                    let _ = response_tx.send(OrderBookResponse::UserBalance {
-                        balance: balance.clone(),
-                    });
-                } else {
-                    let _ = response_tx.send(OrderBookResponse::Error {
-                        message: "User not found".to_string(),
-                    });
+                match orderbook.get_user_balance(user_id) {
+                    Some(balance) => {
+                        let _ = response_tx.send(OrderBookResponse::UserBalance {
+                            balance: balance.clone(),
+                        });
+                    }
+                    None => {
+                        let _ = response_tx.send(OrderBookResponse::Error(
+                            crate::orderbook::OrderBookError::UserNotFound(user_id),
+                        ));
+                    }
                 }
             }
 

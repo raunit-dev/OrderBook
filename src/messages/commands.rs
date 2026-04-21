@@ -1,5 +1,5 @@
+use crate::orderbook::OrderBookError;
 use crate::types::{OrderSide, Price, Quantity, Trade, UserBalance};
-use serde::{Deserialize, Serialize};
 use tokio::sync::oneshot;
 use uuid::Uuid;
 
@@ -45,7 +45,7 @@ pub enum OrderBookCommand {
 }
 
 /// Responses sent from OrderBook engine thread back to HTTP handlers
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug)]
 pub enum OrderBookResponse {
     // Order responses
     OrderPlaced {
@@ -74,8 +74,10 @@ pub enum OrderBookResponse {
         new_balance: f64,
     },
 
-    // Error response
-    Error {
-        message: String,
-    },
+    // Typed engine error (e.g. InsufficientBalance, OrderNotFound, …)
+    Error(OrderBookError),
+
+    // Non-engine failures surfaced from the command-handling path
+    // (e.g. "not authorized to cancel this order").
+    Rejected(String),
 }

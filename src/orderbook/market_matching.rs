@@ -1,4 +1,4 @@
-use crate::orderbook::OrderBook;
+use crate::orderbook::{OrderBook, OrderBookError};
 use crate::types::{Order, OrderSide, Trade};
 use std::cmp::Reverse;
 
@@ -6,7 +6,7 @@ impl OrderBook {
     pub(crate) fn match_market_order(
         &mut self,
         taker_order: &mut Order,
-    ) -> Result<Vec<Trade>, String> {
+    ) -> Result<Vec<Trade>, OrderBookError> {
         let mut trades = Vec::new();
 
         match taker_order.side {
@@ -22,13 +22,16 @@ impl OrderBook {
     }
 
     // Match a market buy order (taker buys at best ask prices)
-    fn match_market_buy(&mut self, taker_order: &mut Order) -> Result<Vec<Trade>, String> {
+    fn match_market_buy(
+        &mut self,
+        taker_order: &mut Order,
+    ) -> Result<Vec<Trade>, OrderBookError> {
         let mut trades = Vec::new();
 
         while !taker_order.is_fully_filled() {
             let best_ask_price = match self.best_ask() {
                 Some(price) => price,
-                None => return Err("Insufficient liquidity for market order".to_string()),
+                None => return Err(OrderBookError::InsufficientLiquidity),
             };
 
             let (trade, maker_id, maker_filled) = {
@@ -89,13 +92,16 @@ impl OrderBook {
         Ok(trades)
     }
 
-    fn match_market_sell(&mut self, taker_order: &mut Order) -> Result<Vec<Trade>, String> {
+    fn match_market_sell(
+        &mut self,
+        taker_order: &mut Order,
+    ) -> Result<Vec<Trade>, OrderBookError> {
         let mut trades = Vec::new();
 
         while !taker_order.is_fully_filled() {
             let best_bid_price = match self.best_bid() {
                 Some(price) => price,
-                None => return Err("Insufficient liquidity for market order".to_string()),
+                None => return Err(OrderBookError::InsufficientLiquidity),
             };
 
             let (trade, maker_id, maker_filled) = {
