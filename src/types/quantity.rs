@@ -7,10 +7,6 @@ pub struct Quantity(u64);
 impl Quantity {
     const MULTIPLIER: u64 = 100_000_000; // 10^8
 
-    pub fn new(value: u64) -> Self {
-        Quantity(value)
-    }
-
     pub fn from_f64(value: f64) -> Self {
         let fixed_point = (value * Self::MULTIPLIER as f64).round() as u64;
         Quantity(fixed_point)

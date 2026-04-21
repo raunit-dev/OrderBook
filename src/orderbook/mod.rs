@@ -1,5 +1,4 @@
 pub mod errors;
-pub mod market_matching;
 pub mod matching;
 pub mod orderbook;
 pub mod price_level;
