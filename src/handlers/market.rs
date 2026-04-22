@@ -51,6 +51,6 @@ pub async fn get_orderbook(
 pub async fn health() -> impl Responder {
     HttpResponse::Ok().json(serde_json::json!({
         "status": "healthy",
-        "service": "orderbook"
+        "service": "demo-orderbook"
     }))
 }

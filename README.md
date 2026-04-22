@@ -1,10 +1,11 @@
-# orderbook
+# Demo-OrderBook
 
-A limit-order matching engine that looks simple — until you open it.
+> A **learning-grade** limit-order matching engine. Not a real exchange. Not to be trusted with real money.
+> Name it to claim it: this is a **demo**.
 
-On the surface: a few REST endpoints, signup, place an order, cancel.
-Underneath: price–time priority, integer money, an actor-model engine,
-and zero locks on the hot path.
+What it is: a compact, typed, actor-model matching engine that looks simple —
+until you open it. Signup, on-ramp, place, match, cancel. The interesting
+parts are underneath.
 
 ```
   HTTP (actix)  ──┐
@@ -29,9 +30,9 @@ no mutexes — the ownership model is the concurrency model.
 ## Run it
 
 ```bash
-docker compose up -d         # Postgres on :5432
+docker compose up -d          # Postgres on :5432
 cp .env.example .env
-cargo run                     # migrates + serves on :8080
+cargo run                      # migrates + serves on :8080
 ```
 
 ## Talk to it
@@ -55,7 +56,13 @@ curl -X POST localhost:8080/api/orders/limit \
 curl localhost:8080/api/orderbook
 ```
 
-## Not yet
+## What this is *not*
 
-Multiple trading pairs. Persisted orders. A UI. Being an actual exchange.
-Everything else — the interesting parts — is here.
+- Not a real exchange. No KYC, no custody, no settlement risk, no legal compliance.
+- No stop / take-profit / conditional orders — only limit and market.
+- No persisted orders across restart — the book lives in memory.
+- Single trading pair (BTC/USD), single writer, no clustering.
+- Do not use this to move real money. Really.
+
+Built to learn trading-engine architecture in Rust. Everything else
+— the interesting parts — is here.

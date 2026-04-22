@@ -22,7 +22,7 @@ async fn main() -> std::io::Result<()> {
 
     env_logger::init_from_env(env_logger::Env::new().default_filter_or("info"));
 
-    println!("Starting Orderbook System...");
+    println!("Starting Demo-OrderBook...");
 
     // --- Postgres: pool + run migrations ---
     let database_url =
@@ -51,7 +51,7 @@ async fn main() -> std::io::Result<()> {
     // --- JWT auth middleware ---
     let auth = HttpAuthentication::bearer(jwt_validator);
 
-    println!("Orderbook engine started");
+    println!("Demo-OrderBook engine started");
     println!("Starting HTTP server on http://127.0.0.1:8080");
 
     HttpServer::new(move || {
