@@ -21,14 +21,11 @@ pub async fn run_orderbook_engine(mut rx: mpsc::Receiver<OrderBookCommand>) {
                 let order_id = order.id;
 
                 // Reserve funds in integer minor units before the order touches the book.
-                let reservation = match side {
-                    Buy => {
-                        let usd_needed = price.times_quantity(quantity);
-                        orderbook.deduct_balance(user_id, Currency::Usd, usd_needed)
-                    }
-                    Sell => orderbook.deduct_balance(user_id, Currency::Btc, quantity.raw()),
+                let (currency, amount) = match side {
+                    Buy => (Currency::Usd, price.times_quantity(quantity)),
+                    Sell => (Currency::Btc, quantity.raw()),
                 };
-                if let Err(e) = reservation {
+                if let Err(e) = orderbook.deduct_balance(user_id, currency, amount) {
                     let _ = response_tx.send(OrderBookResponse::Error(e));
                     continue;
                 }
@@ -144,8 +141,9 @@ pub async fn run_orderbook_engine(mut rx: mpsc::Receiver<OrderBookCommand>) {
                     });
                 }
                 None => {
-                    let _ = response_tx
-                        .send(OrderBookResponse::Error(OrderBookError::UserNotFound(user_id)));
+                    let _ = response_tx.send(OrderBookResponse::Error(
+                        OrderBookError::UserNotFound(user_id),
+                    ));
                 }
             },
 
