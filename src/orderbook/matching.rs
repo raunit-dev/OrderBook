@@ -7,27 +7,25 @@ impl OrderBook {
     ///
     /// Mutates `taker.remaining_quantity` as fills happen. Caller is responsible for
     /// resting the unfilled remainder (if any) on the book via `add_order`.
-    pub fn match_limit_order(
-        &mut self,
-        taker: &mut Order,
-    ) -> Result<Vec<Trade>, OrderBookError> {
+    pub fn match_limit_order(&mut self, taker: &mut Order) -> Result<Vec<Trade>, OrderBookError> {
         let taker_limit = taker.price.ok_or(OrderBookError::MissingPrice)?;
         let taker_side = taker.side;
         let mut trades = Vec::new();
 
         while !taker.is_fully_filled() {
+            // while there's still quantity to fill
             let best = match self.best_opposite(taker_side) {
                 Some(p) => p,
-                None => break,
+                None => break, // if no opposite side exists, stop
             };
 
             if !crosses(taker_side, best, taker_limit) {
-                break;
+                break; // if price dont cross stop
             }
 
             match self.fill_once_at_level(taker_side, best, taker)? {
                 Some(trade) => trades.push(trade),
-                None => break, // level drained unexpectedly; treat as book exhausted
+                None => break, // otherwise fill one at the best price
             }
         }
 
@@ -39,10 +37,7 @@ impl OrderBook {
     /// Returns `Err(InsufficientLiquidity)` only if **no** fills were possible.
     /// A partial fill (some quantity matched, book then ran dry) returns `Ok(trades)` —
     /// any already-settled fills are kept rather than rolled back.
-    pub fn match_market_order(
-        &mut self,
-        taker: &mut Order,
-    ) -> Result<Vec<Trade>, OrderBookError> {
+    pub fn match_market_order(&mut self, taker: &mut Order) -> Result<Vec<Trade>, OrderBookError> {
         let taker_side = taker.side;
         let mut trades = Vec::new();
 
